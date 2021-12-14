@@ -1,0 +1,33 @@
+---
+title: "Additional Evaluation"
+author: "CCP"
+date: "12/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Libraries and Packages
+```{r}
+library(tidyverse)
+library(data.table)
+```
+
+# Data
+```{r}
+dat <- fread("210127_processed_final_text.csv")
+```
+
+# Number of Unique Comments
+```{r}
+length(unique(as.numeric(as.character(dat$V1)))) #780822
+
+test <- dat %>%
+  filter(str_detect(processed_text_bert, "obese|obesity")) #689,447 comments
+
+length(unique(test$author)) #375,053 authors
+length(which(test$author == "[deleted]")) #22,418 deleted authors
+```
+
