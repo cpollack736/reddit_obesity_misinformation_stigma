@@ -22,6 +22,7 @@ library(lsr) #Cohen's d
 library(broom)
 library(Rtsne) #Move up if keep this
 library(ggpubr)
+library(cowplot)
 ```
 
 # Bring in Data
@@ -285,6 +286,71 @@ feature_matrix_comparison_liwconly$p_adjust <- p.adjust(feature_matrix_compariso
 
 View(feature_matrix_comparison_liwconly %>%
        arrange(desc(cohens_d)))
+
+View(feature_matrix_comparison_liwconly %>%
+       select(word_label,
+              d,
+              mean_d,
+              sd_d,
+              cohens_d) %>%
+       mutate(cohens_d = round(cohens_d, 2),
+              mean_d = round(mean_d, 2),
+              sd_d = round(sd_d, 2)))
+```
+
+## Visualization
+```{r}
+feature_matrix_comparison_liwconly_large_effect <- feature_matrix_comparison_liwconly %>%
+  filter(cohens_d > 0.80)
+
+feature_matrix_comparison_liwconly %>%
+  filter(d %in% feature_matrix_comparison_liwconly_large_effect$d &
+           d != "WC") %>%
+  group_by(d) %>%
+  filter(d %in% c("Colon", "friend", "Tone", "relativ", "Clout", "QMark", "social", "WPS", "Authentic")) %>%
+  mutate(label_plot = case_when(
+           d == "friend" ~ "Friends",
+           d == "relativ" ~ "Relativity",
+           d == "QMark" ~ "Question Marks",
+           d == "WPS" ~ "Words per Sentence",
+           TRUE ~ str_to_sentence(d)),
+         fill_plot = case_when(
+           d %in% c("Colon", "friend", "Tone") & word_label == "Misinformation" ~ "0",
+           d %in% c("relativ") & word_label == "Stigma" ~ "1",
+           d %in% c("Clout", "QMark", "social", "WPS", "Authentic") & word_label == "Positivity" ~ "2",
+           TRUE ~ "3"),
+         label_plot = factor(label_plot,
+                             levels = c("Colon", "Friends", "Tone", "Relativity", "Clout", "Question Marks", "Social", "Words per Sentence", "Authentic")),
+         word_label = factor(word_label,
+                             levels = c("Positivity",
+                                        "Stigma",
+                                        "Misinformation",
+                                        "Fact"))) %>%
+  ggplot(aes(y = word_label,
+             x = mean_d,
+             fill = fill_plot)) +
+  geom_bar(stat = "identity",
+           color = "black") +
+  geom_errorbar(aes(xmin = mean_d - sd_d,
+                    xmax = mean_d + sd_d),
+                width = 0.2,
+                position = position_dodge(0.90)) + 
+  facet_wrap(~label_plot,
+             scales = "free_x") +
+  geom_vline(mapping = aes(xintercept = liwc_mean),
+             linetype = "dashed") + 
+  scale_fill_manual(values = c("#4E79A7",
+                                "#F28E2B",
+                                "#FFBE7D",
+                                "#BAB0AC")) + 
+  theme_classic() +
+  theme(legend.position = "none") +
+  labs(x = "Cohen's d",
+       y = "Label Category",
+       title = "Comparisons Between Select LIWC Psycholinguistic Features\nand Label Categories")
+setwd("~/Documents/dartmouth/research/aim2_reddit_misinformation_stigma/figures")
+ggsave("211220_liwc_cohensd.tiff", width = 7.25, height = 4.51)
+
 ```
 
 # Two-Part Model for Semicontinuous Data
@@ -942,7 +1008,7 @@ set.seed(110295)
 feature_matrix_tsne_labels_sampled <- feature_matrix_tsne_labels %>%
   filter(word_label != "Other") %>%
   group_by(word_label) %>%
-  sample_n(100)
+  sample_n(1000)
 
 feature_matrix_tsne_sampled <- feature_matrix_tsne_labels_sampled %>%
   select(-word_label)
@@ -992,7 +1058,7 @@ tsne_data_sampled_mf <- Rtsne(feature_matrix_tsne_sampled_mf,
 tsne_dataframe_sampled_mf <- as.data.frame(tsne_data_sampled_mf$Y)
 tsne_dataframe_sampled_mf$word_label <- feature_matrix_tsne_labels_sampled_mf$word_label
 
-tsne_dataframe_sampled_mf %>%
+a<- tsne_dataframe_sampled_mf %>%
   mutate(word_label_plot = factor(word_label, 
                                   levels = c("Misinformation", "Fact"))) %>%
   ggplot(aes(x = V1,
@@ -1013,7 +1079,7 @@ tsne_dataframe_sampled_mf %>%
                                 #"#B07AA1", #Other
   ))
 setwd("~/Documents/dartmouth/research/aim2_reddit_misinformation_stigma/figures")
-ggsave("211213_tsne_noother_sampled_mf.tiff", width = 7.25, height = 4.51)
+ggsave("211217_tsne_noother_sampled_mf_1000.tiff", width = 7.25, height = 4.51)
 ```
 
 ##Stigma vs. Positivity
@@ -1033,7 +1099,7 @@ tsne_data_sampled_sp <- Rtsne(feature_matrix_tsne_sampled_sp,
 tsne_dataframe_sampled_sp <- as.data.frame(tsne_data_sampled_sp$Y)
 tsne_dataframe_sampled_sp$word_label <- feature_matrix_tsne_labels_sampled_sp$word_label
 
-tsne_dataframe_sampled_sp %>%
+b <- tsne_dataframe_sampled_sp %>%
   mutate(word_label_plot = factor(word_label,
                                   levels = c("Stigma", "Positivity"))) %>%
   ggplot(aes(x = V1,
@@ -1054,7 +1120,20 @@ tsne_dataframe_sampled_sp %>%
                                 #"#B07AA1", #Other
   ))
 setwd("~/Documents/dartmouth/research/aim2_reddit_misinformation_stigma/figures")
-ggsave("211213_tsne_noother_sampled_sp.tiff", width = 7.25, height = 4.51)
+ggsave("211217_tsne_noother_sampled_sp_1000.tiff", width = 7.25, height = 4.51)
+```
+
+## Combine into one plot
+```{r}
+tsne_plot <- ggarrange(a + ylim(-35, 35) + ggtitle("Fact vs. Misinformation") + theme(legend.position = "bottom"),
+                       b + ylim(-35, 35) + ggtitle("Stigma vs. Positivity") + theme(axis.text.y = element_blank(),
+                                                                                    axis.ticks.y = element_blank(),
+                                                                                    axis.title.y = element_blank(),
+                                                                                    legend.position = "bottom"))
+annotate_figure(tsne_plot, top = "TSNE Visualization of Sampled Labeled Data")
+setwd("~/Documents/dartmouth/research/aim2_reddit_misinformation_stigma/figures")
+ggsave("211220_tsne_noother_sampled_all_1000.tiff", width = 7.25, height = 4.51)
+
 ```
 
 # Compare with Metadata
@@ -1072,5 +1151,214 @@ feature_matrix_2000_with_metadata %>%
   group_by(subreddit) %>%
   summarise(count = n()) %>%
   arrange(desc(count))
+```
+
+# Other vs. Each Category
+## Modeling
+```{r}
+feature_matrix_twopartmodel <- feature_matrix_full %>%
+  select(all_of(tfidf_sentiment_liwc_spaces_full), word_label)
+
+feature_matrix_twopartmodel$word_label <- factor(feature_matrix_twopartmodel$word_label, levels = c("Other", "Fact", "Misinformation", "Positivity", "Stigma"))
+
+zero_model_all <- NULL
+nonzero_model_all <- NULL
+for (val in tfidf_sentiment_liwc_spaces_full) {
+  print(val)
+  loop <- feature_matrix_twopartmodel %>%
+    select(val, word_label) #Extracting just the label and the term of interest
+  
+  if (min(loop[,1] > 0, na.rm = TRUE)) { #Checking that at least one 0 in the data
+    next 
+  }
+  loop$val_binary <- ifelse(loop[,1] > 0, 1, 0) #Binary yes/no for zeros
+  loop_tidy <- glm(val_binary ~ word_label,
+                   data = loop,
+                   family = binomial(link = "logit")) %>%
+    tidy(conf.int = TRUE,
+         exponentiate = TRUE) %>%
+    select(term, estimate, conf.low, conf.high, p.value) #Zero-inflated model
+  
+  loop_tidy$val <- val
+  zero_model_all <- rbind(zero_model_all, loop_tidy) #Adding results to final DF
+      
+  loop_part2 <- loop %>%
+    filter(val_binary == 1) #Only keeping non-zero values
+
+  if (length(unique(loop_part2$word_label)) == 1) { #Checking that both types of labels are in the filtered data set
+    next
+  }
+  loop_tidy_part2 <- lm(get(val) ~ word_label,
+                   data = loop_part2) %>%
+    tidy(conf.int = TRUE) %>%
+    select(term, estimate, conf.low, conf.high, p.value)
+  
+  loop_tidy_part2$val <- val
+  nonzero_model_all <- rbind(nonzero_model_all, loop_tidy_part2)   
+}
+
+zero_model_all %<>%
+  filter(term != "(Intercept)")
+
+zero_model_all$p_value_adjusted <- p.adjust(zero_model_all$p.value, 
+                                           method = "fdr")
+
+nonzero_model_all %<>%
+  filter(term != "(Intercept)")
+
+nonzero_model_all$p_value_adjusted <- p.adjust(nonzero_model_all$p.value, 
+                                           method = "fdr")
+
+View(zero_model_all %>%
+  filter(term != "(Intercept)") %>%
+  mutate(estimate = round(estimate, 3),
+         conf.low = round(conf.low, 3),
+         conf.high = round(conf.high, 3),
+         p_value_adjusted = round(p_value_adjusted, 3)) %>%
+  select(term, val, estimate, conf.low, conf.high, p_value_adjusted))
+
+View(nonzero_model_all %>%
+  filter(term != "(Intercept)") %>%
+  mutate(estimate = round(estimate, 3),
+         conf.low = round(conf.low, 3),
+         conf.high = round(conf.high, 3),
+         p_value_adjusted = round(p_value_adjusted, 3)) %>%
+  select(term, val, estimate, conf.low, conf.high, p_value_adjusted))
+```
+
+## Replotting F vs. M 
+Excludes coefficients where Fact or Misinformation was not significantly different than Other
+```{r}
+nonzero_model_all_mf_sig <- nonzero_model_all %>%
+  filter(grepl("Fact",
+               term) |
+           grepl("Misinformation", 
+                 term)) %>%
+  group_by(val) %>%
+  filter(sum(p_value_adjusted, 
+             na.rm = TRUE) < 0.05)
+
+nonzero_model_fm %>%
+  filter(is.na(conf.high) == FALSE &
+           is.na(conf.low) == FALSE &
+           val %in% nonzero_model_all_mf_sig$val) %>%
+  mutate(facet = case_when(
+    p_value_adjusted >= 0.05 ~ "Not Significant",
+    p_value_adjusted < 0.05 & estimate > 0 ~ "Misinformation > Fact",
+    p_value_adjusted < 0.05 & estimate < 0 ~ "Misinformation < Fact"
+  )) %>%
+  filter(p_value_adjusted < 0.05) %>%
+  mutate(val_plot = case_when(
+    val == "AllPunc" ~ "All Punctuation",
+    val == "Sixltr" ~ "Words with At Least Six Letters",
+    val == "compound" ~ "Compound Sentiment Score",
+    val == "article" ~ "Function Words - Articles",
+    val == "verb" ~ "Regular Verbs",
+    val == "nonflu" ~ "Informal Speech - Nonfluencies",
+    val == "function" ~ "Function Words",
+    val == "cause" ~ "Cognitive Processes - Cause",
+    val == "Apostro" ~ "Apostrophes",
+    val == "home" ~ "Personal Concerns - Home",
+    val == "negate" ~ "Negations",
+    val == "death" ~ "Personal Concerns - Death",
+    val == "focuspresent" ~ "Time Orientation - Present Focus")) %>%
+  arrange(desc(estimate)) %>%
+  group_by(facet) %>%
+  mutate(absolute_estimate = abs(estimate)) %>%
+  slice_max(absolute_estimate, n = 10, with_ties = T) %>%
+  ggplot(aes(x = estimate, 
+             y = reorder(val_plot, -estimate),
+             color = facet)) + 
+  geom_errorbar(aes(xmin=conf.low, 
+                    xmax=conf.high), 
+                width=0.2) +
+  geom_point() +
+  geom_vline(xintercept = 0,
+             linetype = "dashed") + 
+  scale_color_npg() + 
+  #facet_wrap(~facet,
+  #           scales = "free") + 
+  labs(x = expression(beta),
+       y = "Psycholinguistic Features",
+       title = "Association Between Psycholinguistic Features and Label:\nFact vs. Misinformation, Top 10") +
+  theme_classic() +
+  theme(strip.text = element_text(size = 7),
+        legend.position = "bottom",
+        legend.title = element_blank())
+setwd("~/Documents/dartmouth/research/aim2_reddit_misinformation_stigma/figures")
+ggsave("211220_nonzero_regression_fm_nofacet.tiff", width = 7.25, height = 4.51)
+
+```
+
+
+## Replotting S vs. P
+Excludes coefficients where Positivity or Stigma was not significantly different than Other
+```{r}
+nonzero_model_all_sp_sig <- nonzero_model_all %>%
+  filter(grepl("Stigma",
+               term) |
+           grepl("Positivity", 
+                 term)) %>%
+  group_by(val) %>%
+  filter(sum(p_value_adjusted, 
+             na.rm = TRUE) < 0.05)
+
+nonzero_model_ps %>%
+  filter(is.na(conf.high) == FALSE &
+           is.na(conf.low) == FALSE &
+           val %in% nonzero_model_all_sp_sig$val) %>%
+  mutate(facet = case_when(
+    p_value_adjusted >= 0.05 ~ "Not Significant",
+    p_value_adjusted < 0.05 & estimate > 0 ~ "Stigma > Positivity",
+    p_value_adjusted < 0.05 & estimate < 0 ~ "Stigma < Positivity"
+  )) %>%
+  filter(p_value_adjusted < 0.05) %>%
+  mutate(val_plot = case_when(
+     val == "AllPunc" ~ "All Punctuation",
+     val == "Sixltr" ~ "Words with At Least Six Letters",
+     val == "i" ~ "First Person Singular Pronouns",
+     val == "relativ" ~ "Relativity",
+     val == "function" ~ "Total Function Words",
+     val == "time" ~ "Relativity - Time",
+     val == "ppron" ~ "Personal Pronouns",
+     val == "focuspast" ~ "Time Orientation - Past Focus",
+     val == "prep" ~ "Prepositions",
+     val == "number" ~ "Numbers",
+     val == "achieve" ~ "Core Drives and Needs - Achievement",
+     val ==  "we" ~ "First Person Plural Pronouns",
+     val == "sexual" ~ "Biological Processes - Sexual",
+     val == "ipron" ~ "Impersonal Pronouns",
+     val == "informal" ~ "Informal Language",
+     val == "swear" ~ "Informal Language - Swear Words",
+     val == "they" ~ "Third Person Plural Pronouns",
+     val == "anger" ~ "Negative Emotions - Anger",
+     val == "negemo" ~ "Negative Emotions",
+     val == "social" ~ "Social Processes")) %>%
+  arrange(desc(estimate)) %>%
+  group_by(facet) %>%
+  mutate(absolute_estimate = abs(estimate)) %>%
+  slice_max(absolute_estimate, n = 10, with_ties = T) %>%
+  ggplot(aes(x = estimate, 
+             y = reorder(val_plot, -estimate),
+             color = facet)) + 
+  geom_errorbar(aes(xmin=conf.low, 
+                    xmax=conf.high), 
+                width=0.2) +
+  geom_point() +
+  geom_vline(xintercept = 0,
+             linetype = "dashed") + 
+  scale_color_npg() + 
+  #facet_wrap(~facet,
+  #           scales = "free") + 
+  labs(x = expression(beta),
+       y = "Psycholinguistic Features",
+       title = "Association Between Psycholinguistic Features and Label:\nPositivity vs. Stigma, Top 10") +
+  theme_classic() +
+  theme(strip.text = element_text(size = 7),
+        legend.position = "bottom",
+        legend.title = element_blank())
+setwd("~/Documents/dartmouth/research/aim2_reddit_misinformation_stigma/figures")
+ggsave("211220_nonzero_regression_ps_nofacet.tiff", width = 7.25, height = 4.51)
+
 ```
 
