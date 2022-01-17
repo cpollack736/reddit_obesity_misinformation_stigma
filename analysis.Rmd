@@ -342,14 +342,14 @@ feature_matrix_comparison_liwconly %>%
   scale_fill_manual(values = c("#4E79A7",
                                 "#F28E2B",
                                 "#FFBE7D",
-                                "#BAB0AC")) + 
+                                "grey88")) + 
   theme_classic() +
   theme(legend.position = "none") +
-  labs(x = "Cohen's d",
+  labs(x = "Count, Percent, or Standardized Score",
        y = "Label Category",
        title = "Comparisons Between Select LIWC Psycholinguistic Features\nand Label Categories")
 setwd("~/Documents/dartmouth/research/aim2_reddit_misinformation_stigma/figures")
-ggsave("211220_liwc_cohensd.tiff", width = 7.25, height = 4.51)
+ggsave("220111_liwc_cohensd.tiff", width = 7.25, height = 4.51)
 
 ```
 
@@ -531,7 +531,12 @@ nonzero_model_fm %>%
   geom_point() +
   geom_vline(xintercept = 0,
              linetype = "dashed") + 
-  scale_color_npg() + 
+    scale_color_manual(values = c("#A0CBE8", #Fact
+                                  "#4E79A7" #Misinformation
+                                #"#F28E2B", #Stigma
+                                #FFBE7D", #Positivity
+                                #"#BAB0AC"
+                                )) + 
   #facet_wrap(~facet,
   #           scales = "free") + 
   labs(x = expression(beta),
@@ -542,7 +547,7 @@ nonzero_model_fm %>%
         legend.position = "bottom",
         legend.title = element_blank())
 setwd("~/Documents/dartmouth/research/aim2_reddit_misinformation_stigma/figures")
-ggsave("211019_nonzero_regression_fm_nofacet.tiff", width = 7.25, height = 4.51)
+ggsave("220111_nonzero_regression_fm_nofacet.tiff", width = 7.25, height = 4.51)
 
 ```
 
@@ -742,7 +747,8 @@ nonzero_model_ps %>%
                     xmax=conf.high), 
                 width=0.2) +
   geom_point() +
-  scale_color_npg() + 
+  scale_color_manual(values = c("#FFBE7D",
+                                "#F28E2B")) + 
   geom_vline(xintercept = 0,
              linetype = "dashed") + 
   #facet_wrap(~facet,
@@ -755,7 +761,7 @@ nonzero_model_ps %>%
         legend.position = "bottom",
         legend.title = element_blank())
 setwd("~/Documents/dartmouth/research/aim2_reddit_misinformation_stigma/figures")
-ggsave("211115_nonzero_regression_ps_nofacet.tiff", width = 7.25, height = 4.51)
+ggsave("220111_nonzero_regression_ps_nofacet.tiff", width = 7.25, height = 4.51)
 
 ```
 
