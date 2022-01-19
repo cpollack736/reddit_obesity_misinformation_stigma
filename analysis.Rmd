@@ -23,6 +23,11 @@ library(broom)
 library(Rtsne) #Move up if keep this
 library(ggpubr)
 library(cowplot)
+
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+#BiocManager::install("MAST")
+library(MAST) #zlm
 ```
 
 # Bring in Data
@@ -1170,6 +1175,7 @@ feature_matrix_twopartmodel$word_label <- factor(feature_matrix_twopartmodel$wor
 zero_model_all <- NULL
 nonzero_model_all <- NULL
 for (val in tfidf_sentiment_liwc_spaces_full) {
+#for (val in "OtherP") {
   print(val)
   loop <- feature_matrix_twopartmodel %>%
     select(val, word_label) #Extracting just the label and the term of interest
@@ -1177,7 +1183,7 @@ for (val in tfidf_sentiment_liwc_spaces_full) {
   if (min(loop[,1] > 0, na.rm = TRUE)) { #Checking that at least one 0 in the data
     next 
   }
-  loop$val_binary <- ifelse(loop[,1] > 0, 1, 0) #Binary yes/no for zeros
+  loop$val_binary <- ifelse(loop[,1] > 0, 0, 1) #Binary yes/no for zeros -- if above 0, mark as 0, if 0, mark as 1 (want to model the odds of a zero)
   loop_tidy <- glm(val_binary ~ word_label,
                    data = loop,
                    family = binomial(link = "logit")) %>%
@@ -1189,7 +1195,7 @@ for (val in tfidf_sentiment_liwc_spaces_full) {
   zero_model_all <- rbind(zero_model_all, loop_tidy) #Adding results to final DF
       
   loop_part2 <- loop %>%
-    filter(val_binary == 1) #Only keeping non-zero values
+    filter(val_binary == 0) #Only keeping non-zero values
 
   if (length(unique(loop_part2$word_label)) == 1) { #Checking that both types of labels are in the filtered data set
     next
@@ -1201,6 +1207,9 @@ for (val in tfidf_sentiment_liwc_spaces_full) {
   
   loop_tidy_part2$val <- val
   nonzero_model_all <- rbind(nonzero_model_all, loop_tidy_part2)   
+  
+  print(summary(lm(get(val) ~ word_label,
+                   data = loop_part2) ))
 }
 
 zero_model_all %<>%
@@ -1366,5 +1375,15 @@ nonzero_model_ps %>%
 setwd("~/Documents/dartmouth/research/aim2_reddit_misinformation_stigma/figures")
 ggsave("211220_nonzero_regression_ps_nofacet.tiff", width = 7.25, height = 4.51)
 
+```
+
+# Repeat Hurdle Models Using ZLM
+```{r}
+model <- zlm(OtherP ~ word_label,
+    filter(feature_matrix_twopartmodel,
+           !is.na(OtherP)))
+
+summary.glm(model$cont)
+confint(model$cont)
 ```
 
