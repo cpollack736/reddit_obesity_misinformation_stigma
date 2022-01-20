@@ -379,7 +379,7 @@ for (val in tfidf_sentiment_liwc_spaces_full) {
   if (min(loop[,1] > 0)) { #Checking that at least one 0 in the data
     next 
   }
-  loop$val_binary <- ifelse(loop[,1] > 0, 1, 0) #Binary yes/no for zeros
+  loop$val_binary <- ifelse(loop[,1] > 0, 0, 1) #Binary yes/no for zeros, above 0 is 0, zero is 1
   loop_tidy <- glm(val_binary ~ word_label,
                    data = loop,
                    family = binomial(link = "logit")) %>%
@@ -391,7 +391,7 @@ for (val in tfidf_sentiment_liwc_spaces_full) {
   zero_model_fm <- rbind(zero_model_fm, loop_tidy) #Adding results to final DF
       
   loop_part2 <- loop %>%
-    filter(val_binary == 1) #Only keeping non-zero values
+    filter(val_binary == 0) #Only keeping non-zero values
 
   if (length(unique(loop_part2$word_label)) == 1) { #Checking that both types of labels are in the filtered data set
     next
@@ -410,6 +410,13 @@ zero_model_fm %<>%
 
 zero_model_fm$p_value_adjusted <- p.adjust(zero_model_fm$p.value, 
                                            method = "BH")
+View(zero_model_fm %>%
+  filter(term != "(Intercept)") %>%
+  mutate(estimate = round(estimate, 3),
+         conf.low = round(conf.low, 3),
+         conf.high = round(conf.high, 3),
+         p_value_adjusted = round(p_value_adjusted, 3)) %>%
+  select(val, estimate, conf.low, conf.high, p_value_adjusted))
 
 nonzero_model_fm %<>%
   filter(term != "(Intercept)")
@@ -567,7 +574,7 @@ for (val in tfidf_sentiment_liwc_spaces_full) {
   if (min(loop[,1] > 0)) { #Checking that at least one 0 in the data
     next 
   }
-  loop$val_binary <- ifelse(loop[,1] > 0, 1, 0) #Binary yes/no for zeros
+  loop$val_binary <- ifelse(loop[,1] > 0, 0, 1) #Binary yes/no for zeros, 0 is above 0, 1 is 0
   loop_tidy <- glm(val_binary ~ word_label,
                    data = loop,
                    family = binomial(link = "logit")) %>%
@@ -579,7 +586,7 @@ for (val in tfidf_sentiment_liwc_spaces_full) {
   zero_model_ps <- rbind(zero_model_ps, loop_tidy) #Adding results to final DF
       
   loop_part2 <- loop %>%
-    filter(val_binary == 1) #Only keeping non-zero values
+    filter(val_binary == 0) #Only keeping non-zero values
 
   if (length(unique(loop_part2$word_label)) == 1) { #Checking that both types of labels are in the filtered data set
     next
@@ -1383,7 +1390,7 @@ model <- zlm(OtherP ~ word_label,
     filter(feature_matrix_twopartmodel,
            !is.na(OtherP)))
 
-summary.glm(model$cont)
+summary.glm(model$disc)
 confint(model$cont)
 ```
 
